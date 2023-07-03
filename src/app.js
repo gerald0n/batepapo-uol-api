@@ -37,7 +37,6 @@ app.post('/participants', async (req, res) => {
     return res.status(422).send(errors)
    }
    
-
    try {
       const participant = await db.collection('participants').findOne({ name })
       if (participant) return res.sendStatus(409)
@@ -66,7 +65,46 @@ app.get('/participants', async (req, res) => {
    }
 })
 
+app.post('/messages', async (req, res) => {
+   const { to, text, type } = req.body
+   const from = req.headers.user
 
+   const schemaMessages = Joi.object({
+    to: Joi.string().required(),
+    text: Joi.string().required(),
+    type: Joi.string().valid('message', 'private_message')
+   })
+
+   const schemaFrom = Joi.object({
+    from: Joi.string().required()
+   })
+
+   const validationMessages = schemaMessages.validate(req.body, { abortEarly: false })
+   const validationFrom = schemaFrom.validate(req.header.user, { abortEarly: false })
+
+   if(validationMessages.error) {
+    const errors = validationMessages.error.details.map(detail => detail.message)
+    return res.status(422).send(errors)
+   }
+
+   if(validationFrom.error) {
+    const errors = validationFrom.error.details.map(detail => detail.message)
+    return res.status(422).send(errors)
+   }
+
+   try {
+      const participant = await db.collection('participants').findOne({ name: from })
+      if (!participant) return res.sendStatus(422)
+
+      await db
+         .collection('messages')
+         .insertOne({ from, to, text, type, time: dayjs().format('HH:mm:ss') })
+
+         res.sendStatus(201)
+   } catch (err) {
+    return res.status(422).send(err.message)
+   }
+})
 
 const PORT = 5000
 app.listen(PORT, () => console.log(`Rodando na porta ${PORT}`))
