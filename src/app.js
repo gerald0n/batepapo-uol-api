@@ -37,6 +37,7 @@ app.post('/participants', async (req, res) => {
     return res.status(422).send(errors)
    }
    
+
    try {
       const participant = await db.collection('participants').findOne({ name })
       if (participant) return res.sendStatus(409)
@@ -51,6 +52,15 @@ app.post('/participants', async (req, res) => {
       })
 
       return res.sendStatus(201)
+   } catch (err) {
+      return res.status(500).send(err.message)
+   }
+})
+
+app.get('/participants', async (req, res) => {
+   try {
+      const participants = await db.collection('participants').find().toArray()
+      res.send(participants)
    } catch (err) {
       return res.status(500).send(err.message)
    }
