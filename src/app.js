@@ -27,16 +27,16 @@ app.post('/participants', async (req, res) => {
    const { name } = req.body
 
    const schemaParticipants = Joi.object({
-    name: Joi.string().required()
+      name: Joi.string().required()
    })
 
    const validation = schemaParticipants.validate(req.body, { abortEarly: false })
 
-   if(validation.error) {
-    const errors = validation.error.details.map(detail => detail.message)
-    return res.status(422).send(errors)
+   if (validation.error) {
+      const errors = validation.error.details.map((detail) => detail.message)
+      return res.status(422).send(errors)
    }
-   
+
    try {
       const participant = await db.collection('participants').findOne({ name })
       if (participant) return res.sendStatus(409)
@@ -70,26 +70,26 @@ app.post('/messages', async (req, res) => {
    const from = req.headers.user
 
    const schemaMessages = Joi.object({
-    to: Joi.string().required(),
-    text: Joi.string().required(),
-    type: Joi.string().valid('message', 'private_message')
+      to: Joi.string().required(),
+      text: Joi.string().required(),
+      type: Joi.string().valid('message', 'private_message')
    })
 
    const schemaFrom = Joi.object({
-    from: Joi.string().required()
+      from: Joi.string().required()
    })
 
    const validationMessages = schemaMessages.validate(req.body, { abortEarly: false })
    const validationFrom = schemaFrom.validate(req.header.user, { abortEarly: false })
 
-   if(validationMessages.error) {
-    const errors = validationMessages.error.details.map(detail => detail.message)
-    return res.status(422).send(errors)
+   if (validationMessages.error) {
+      const errors = validationMessages.error.details.map((detail) => detail.message)
+      return res.status(422).send(errors)
    }
 
-   if(validationFrom.error) {
-    const errors = validationFrom.error.details.map(detail => detail.message)
-    return res.status(422).send(errors)
+   if (validationFrom.error) {
+      const errors = validationFrom.error.details.map((detail) => detail.message)
+      return res.status(422).send(errors)
    }
 
    try {
@@ -100,9 +100,29 @@ app.post('/messages', async (req, res) => {
          .collection('messages')
          .insertOne({ from, to, text, type, time: dayjs().format('HH:mm:ss') })
 
-         res.sendStatus(201)
+      res.sendStatus(201)
    } catch (err) {
-    return res.status(422).send(err.message)
+      return res.status(422).send(err.message)
+   }
+})
+
+app.get('/messages', async (req, res) => {
+   const user = req.headers.user
+   const { limit } = req.query
+
+   if (isNaN(limit) || limit <= 0) return res.sendStatus(422)
+
+   try {
+      const messages = await db
+         .collection('messages')
+         .find({
+            $or: [{ to: 'Todos' }, { to: user }, { from: user }]
+         })
+         .toArray()
+
+      res.send(messages.reverse().slice(0, limit))
+   } catch (err) {
+      return res.status(500).send(err.message)
    }
 })
 
