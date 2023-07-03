@@ -72,7 +72,7 @@ app.post('/messages', async (req, res) => {
    const schemaMessages = Joi.object({
       to: Joi.string().required(),
       text: Joi.string().required(),
-      type: Joi.string().valid('message', 'private_message')
+      type: Joi.string().valid('message', 'private_message').required()
    })
 
    const schemaFrom = Joi.object({
@@ -110,7 +110,7 @@ app.get('/messages', async (req, res) => {
    const user = req.headers.user
    const { limit } = req.query
 
-   if (isNaN(limit) && (!isNaN(limit) || limit <= 0)) return res.sendStatus(422)
+   if (isNaN(limit) || limit <= 0) return res.sendStatus(422)
 
    try {
       const messages = await db
