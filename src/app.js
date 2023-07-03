@@ -47,7 +47,7 @@ app.post('/participants', async (req, res) => {
          to: 'Todos',
          text: 'entra na sala...',
          type: 'status',
-         time: dayjs().format('DD/MM/YYYY')
+         time: dayjs().format('HH:mm:ss')
       })
 
       return res.sendStatus(201)
@@ -110,17 +110,18 @@ app.get('/messages', async (req, res) => {
    const user = req.headers.user
    const { limit } = req.query
 
-   if (isNaN(limit) || limit <= 0) return res.sendStatus(422)
+   if (isNaN(limit) && (!isNaN(limit) || limit <= 0)) return res.sendStatus(422)
 
    try {
       const messages = await db
          .collection('messages')
          .find({
-            $or: [{ to: 'Todos' }, { to: user }, { from: user }]
+            $or: [{ to: 'Todos' }, { to: user }, { from: user }, { type: 'message' }]
          })
          .toArray()
 
-      res.send(messages.reverse().slice(0, limit))
+      if (limit) res.send(messages.reverse().slice(0, limit).reverse())
+      else res.send(messages)
    } catch (err) {
       return res.status(500).send(err.message)
    }
@@ -137,8 +138,35 @@ app.post('/status', async (req, res) => {
          .collection('participants')
          .updateOne({ name: user }, { $set: { lastStatus: Date.now() } })
       res.sendStatus(200)
-   } catch (err) {}
+   } catch (err) {
+      return res.status(500).send(err.message)
+   }
 })
+
+setInterval(async () => {
+   try {
+      const participants = await db
+         .collection('participants')
+         .find({ lastStatus: { $lte: Date.now() - 10000 } })
+         .toArray()
+
+      participants.forEach(async (participant) => {
+         await db.collection('messages').insertOne({
+            from: participant.name,
+            to: 'Todos',
+            text: `sai da sala...`,
+            type: 'status',
+            time: dayjs().format('HH:mm:ss')
+         })
+
+         db.collection('participants').deleteOne({
+            name: participant.name
+         })
+      })
+   } catch (error) {
+      return res.status(500).send(err.message)
+   }
+}, 15000)
 
 const PORT = 5000
 app.listen(PORT, () => console.log(`Rodando na porta ${PORT}`))
